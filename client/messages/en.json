@@ -1,0 +1,14 @@
+{
+  "HomePage": {
+    "title": "Home",
+    "heading": "Shop POS",
+    "description": "Shop Pos",
+    "bookNow": "Shop Pos",
+    "getStarted": "Get Started"
+  },
+  "Common": {
+    "language": "Language",
+    "english": "English",
+    "romanian": "Română"
+  }
+}
