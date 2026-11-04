@@ -33,8 +33,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "@/i18n/navigation";
 import {
   PlusCircle,
+  Plus,
   Search,
   Edit2,
   Trash2,
@@ -86,7 +88,7 @@ export default function DashboardProductsPage() {
   const endItem = Math.min(page * limit, totalItems);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-2 md:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -99,10 +101,23 @@ export default function DashboardProductsPage() {
           </p>
         </div>
 
-        <Button onClick={() => setIsAddOpen(true)} className="gap-2">
-          <PlusCircle className="h-4 w-4" />
-          Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            nativeButton={false}
+            variant="outline"
+            className="gap-2"
+            render={(props) => (
+              <Link href="/dashboard/products/add" {...props}>
+                <Plus className="h-4 w-4" />
+                Bulk Add Products
+              </Link>
+            )}
+          />
+          <Button onClick={() => setIsAddOpen(true)} className="gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Main Content Card */}
@@ -159,7 +174,8 @@ export default function DashboardProductsPage() {
                   <TableRow>
                     <TableHead className="w-[60px] text-center">S.No</TableHead>
                     <TableHead>Product Name</TableHead>
-                    <TableHead>Price</TableHead>
+                    <TableHead>Cost Price</TableHead>
+                    <TableHead>Selling Price</TableHead>
                     <TableHead>Stock Level</TableHead>
                     <TableHead className="text-right pr-6">Actions</TableHead>
                   </TableRow>
@@ -175,6 +191,11 @@ export default function DashboardProductsPage() {
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">
                         {product.p_name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.p_costprice !== undefined && product.p_costprice !== null
+                          ? formatPrice(product.p_costprice, currencySymbol)
+                          : "-"}
                       </TableCell>
                       <TableCell className="font-medium">
                         {formatPrice(product.p_price, currencySymbol)}

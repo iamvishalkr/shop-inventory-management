@@ -4,6 +4,7 @@ import { requireShop } from "../middleware/require-shop.middleware.js";
 import {
     getProducts,
     createProduct,
+    bulkCreateProducts,
     updateProduct,
     deleteProduct,
 } from "../controllers/product.controller.js";
@@ -16,5 +17,6 @@ productRoutes.use(requireShop);
 
 productRoutes.get("/", getProducts);
 productRoutes.post("/", createProduct);
+productRoutes.post("/bulk", bulkCreateProducts);
 productRoutes.put("/:id", updateProduct);
 productRoutes.delete("/:id", deleteProduct);

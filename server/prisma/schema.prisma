@@ -105,6 +105,7 @@ model Product {
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   p_name      String
   p_price     Float
+  p_costprice Float?   @default(0)
   p_stock     Int
   p_thumbnail String?
   createdAt   DateTime @default(now())

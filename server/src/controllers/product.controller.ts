@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { createProductSchema, updateProductSchema } from "../validators/product.validator.js";
+import { createProductSchema, bulkCreateProductsSchema, updateProductSchema } from "../validators/product.validator.js";
 import * as productService from "../services/product.service.js";
 
 export async function getProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -23,6 +23,22 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
         const validated = createProductSchema.parse(req.body);
         const product = await productService.createProduct(shopId, userId, validated);
         res.status(201).json({ status: true, message: "Product created successfully", data: product });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function bulkCreateProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const shopId = req.shopId!;
+        const userId = req.session.user.id;
+        const validated = bulkCreateProductsSchema.parse(req.body);
+        const result = await productService.bulkCreateProducts(shopId, userId, validated.products);
+        res.status(201).json({
+            status: true,
+            message: `${result.count} products created successfully`,
+            data: result,
+        });
     } catch (error) {
         next(error);
     }

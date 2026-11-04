@@ -36,10 +36,26 @@ export function useCreateProduct() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { p_name: string; p_price: number; p_stock: number; p_thumbnail?: string }) => {
+        mutationFn: async (data: { p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string }) => {
             return apiFetch<ApiResponse<Product>>("/api/products", {
                 method: "POST",
                 body: JSON.stringify(data),
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+        },
+    });
+}
+
+export function useBulkCreateProducts() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (products: Array<{ p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string }>) => {
+            return apiFetch<ApiResponse<{ count: number }>>("/api/products/bulk", {
+                method: "POST",
+                body: JSON.stringify({ products }),
             });
         },
         onSuccess: () => {
@@ -52,7 +68,7 @@ export function useUpdateProduct() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: { p_name: string; p_price: number; p_stock: number; p_thumbnail?: string } }) => {
+        mutationFn: async ({ id, data }: { id: string; data: { p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string } }) => {
             return apiFetch<ApiResponse<Product>>(`/api/products/${id}`, {
                 method: "PUT",
                 body: JSON.stringify(data),

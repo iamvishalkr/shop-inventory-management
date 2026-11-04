@@ -3,6 +3,7 @@ export interface Product {
     userId: string;
     p_name: string;
     p_price: number;
+    p_costprice?: number;
     p_stock: number;
     p_thumbnail?: string | null;
     createdAt?: string;

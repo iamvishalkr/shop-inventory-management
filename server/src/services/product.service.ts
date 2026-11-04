@@ -66,9 +66,26 @@ export async function createProduct(shopId: string, userId: string, input: Creat
             userId,
             p_name: input.p_name,
             p_price: input.p_price,
+            p_costprice: input.p_costprice ?? 0,
             p_stock: input.p_stock,
             p_thumbnail: input.p_thumbnail,
         },
+    });
+}
+
+export async function bulkCreateProducts(shopId: string, userId: string, products: CreateProductInput[]) {
+    const data = products.map((input) => ({
+        shopId,
+        userId,
+        p_name: input.p_name,
+        p_price: input.p_price,
+        p_costprice: input.p_costprice ?? 0,
+        p_stock: input.p_stock,
+        p_thumbnail: input.p_thumbnail,
+    }));
+
+    return prisma.product.createMany({
+        data,
     });
 }
 

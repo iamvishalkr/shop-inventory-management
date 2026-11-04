@@ -38,6 +38,9 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
     const isEdit = !!productToEdit;
 
     const [pName, setPName] = useState(productToEdit?.p_name || "");
+    const [pCostPrice, setPCostPrice] = useState(
+        productToEdit?.p_costprice !== undefined ? String(toMajor(productToEdit.p_costprice)) : ""
+    );
     const [pPrice, setPPrice] = useState(productToEdit ? String(toMajor(productToEdit.p_price)) : "");
     const [pStock, setPStock] = useState(productToEdit ? String(productToEdit.p_stock) : "");
     const [errorMsg, setErrorMsg] = useState("");
@@ -61,6 +64,16 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
         }
         const priceInCents = toCents(pPrice);
 
+        let costPriceInCents = 0;
+        if (pCostPrice.trim()) {
+            const rawCostPrice = parseFloat(pCostPrice);
+            if (isNaN(rawCostPrice) || rawCostPrice < 0) {
+                setErrorMsg("Please enter a valid cost price (0 or greater).");
+                return;
+            }
+            costPriceInCents = toCents(pCostPrice);
+        }
+
         const stock = parseInt(pStock, 10);
         if (isNaN(stock) || stock < 0) {
             setErrorMsg("Please enter a valid stock amount (0 or greater).");
@@ -74,6 +87,7 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
                     data: {
                         p_name: pName.trim(),
                         p_price: priceInCents,
+                        p_costprice: costPriceInCents,
                         p_stock: stock,
                     },
                 });
@@ -81,6 +95,7 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
                 await createProductMutation.mutateAsync({
                     p_name: pName.trim(),
                     p_price: priceInCents,
+                    p_costprice: costPriceInCents,
                     p_stock: stock,
                 });
             }
@@ -118,18 +133,34 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="p_price">Price (₹ / $)</Label>
-                        <Input
-                            id="p_price"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="e.g. 29.99"
-                            value={pPrice}
-                            onChange={(e) => setPPrice(e.target.value)}
-                            disabled={isLoading}
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="p_costprice">Cost Price (₹ / $)</Label>
+                            <Input
+                                id="p_costprice"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="e.g. 15.00"
+                                value={pCostPrice}
+                                onChange={(e) => setPCostPrice(e.target.value)}
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="p_price">Selling Price (₹ / $)</Label>
+                            <Input
+                                id="p_price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="e.g. 29.99"
+                                value={pPrice}
+                                onChange={(e) => setPPrice(e.target.value)}
+                                disabled={isLoading}
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-1.5">

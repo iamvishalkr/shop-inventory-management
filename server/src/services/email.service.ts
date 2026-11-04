@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 import { resend, transporter } from "../lib/email.js";
 
 export class EmailService {
@@ -28,6 +30,33 @@ export class EmailService {
     subject: string;
     html: string;
   }) {
+    const env = (process.env.NODE_ENV || "").toLowerCase();
+    const isDev = env === "development" || env === "dev" || !env;
+
+    if (isDev) {
+      try {
+        const logDir = path.resolve(process.cwd(), "logs");
+        if (!fs.existsSync(logDir)) {
+          fs.mkdirSync(logDir, { recursive: true });
+        }
+
+        const logFilePath = path.join(logDir, "email.log");
+        const logEntry = `[${new Date().toISOString()}] To: ${options.to} | Subject: ${options.subject}\nContent:\n${options.html}\n----------------------------------------\n\n`;
+
+        await fs.promises.appendFile(logFilePath, logEntry, "utf-8");
+        console.log(
+          `[Email Service] [Dev Mode] Email intercepted and written to log file (${logFilePath}) for: ${options.to}`
+        );
+        return true;
+      } catch (logError) {
+        console.error(
+          `[Email Service Error] Failed to write email log for ${options.to}:`,
+          logError
+        );
+        return false;
+      }
+    }
+
     try {
       const { data, error } = await resend.emails.send({
         from: `Shop App <${process.env.SMTP_USER!}>`,
