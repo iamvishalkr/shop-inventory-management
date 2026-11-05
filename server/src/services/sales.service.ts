@@ -1,5 +1,5 @@
 import prisma from "../lib/db.js";
-import { NotFoundError } from "../types/app-error.js";
+import { NotFoundError, ValidationError } from "../types/app-error.js";
 import type { CreateSaleInput } from "../validators/sales.validator.js";
 
 export interface GetSalesOptions {
@@ -50,24 +50,29 @@ export async function getSalesByShop(shopId: string, options: GetSalesOptions = 
 }
 
 export async function createSale(shopId: string, userId: string, input: CreateSaleInput) {
-    const sale = await prisma.sale.create({
-        data: {
-            shopId,
-            userId,
-            cust_name: input.cust_name,
-            cust_email: input.cust_email,
-            cust_contact: input.cust_contact,
-            cartItems: input.cartItems as any,
-        },
-    });
-
-    // Update product stock for each item in cart, strictly scoped to shopId
-    for (const item of input.cartItems) {
-        try {
-            await prisma.product.updateMany({
+    return prisma.$transaction(async (tx) => {
+        // 1. Verify availability and decrement stock for each item in the cart
+        for (const item of input.cartItems) {
+            const product = await tx.product.findFirst({
                 where: {
                     id: item.c_id,
                     shopId,
+                },
+            });
+
+            if (!product) {
+                throw new NotFoundError(`Product "${item.c_name}" not found in this shop.`);
+            }
+
+            if (product.p_stock < item.c_quantity) {
+                throw new ValidationError(
+                    `Insufficient stock for "${product.p_name}". Available: ${product.p_stock}, Requested: ${item.c_quantity}`
+                );
+            }
+
+            await tx.product.update({
+                where: {
+                    id: item.c_id,
                 },
                 data: {
                     p_stock: {
@@ -75,12 +80,22 @@ export async function createSale(shopId: string, userId: string, input: CreateSa
                     },
                 },
             });
-        } catch (error) {
-            console.error(`Failed to update stock for product ${item.c_id} in shop ${shopId}:`, error);
         }
-    }
 
-    return sale;
+        // 2. Create the sale record within the same transaction
+        const sale = await tx.sale.create({
+            data: {
+                shopId,
+                userId,
+                cust_name: input.cust_name,
+                cust_email: input.cust_email,
+                cust_contact: input.cust_contact,
+                cartItems: input.cartItems as any,
+            },
+        });
+
+        return sale;
+    });
 }
 
 export async function deleteSale(shopId: string, salesId: string) {
