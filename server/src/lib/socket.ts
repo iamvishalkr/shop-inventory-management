@@ -21,6 +21,14 @@ export interface ScanFeedbackPayload {
   code?: string;
 }
 
+interface SessionState {
+  pcs: Set<string>;
+  phones: Set<string>;
+}
+
+// In-memory session tracking for active device counts
+const sessions = new Map<string, SessionState>();
+
 export function setupSocket(server: HttpServer, clientUrl: string): Server {
   const io = new Server(server, {
     cors: {
@@ -45,7 +53,57 @@ export function setupSocket(server: HttpServer, clientUrl: string): Server {
       socket.data.role = role;
 
       socket.join(sessionId);
-      console.log(`[Socket] ${role.toUpperCase()} joined session: ${sessionId} (Socket: ${socket.id})`);
+
+      // Register device in session map
+      if (!sessions.has(sessionId)) {
+        sessions.set(sessionId, { pcs: new Set(), phones: new Set() });
+      }
+      const session = sessions.get(sessionId)!;
+
+      if (role === "phone") {
+        session.phones.add(socket.id);
+        const count = session.phones.size;
+        console.log(`[Socket] PHONE joined session: ${sessionId} (Active phones: ${count}, Socket: ${socket.id})`);
+
+        // If PC is already in the room, notify this phone immediately
+        if (session.pcs.size > 0) {
+          socket.emit("pc-connected", { timestamp: Date.now() });
+        }
+
+        // Notify room / PC of the updated phone count
+        io.to(sessionId).emit("phone-count", {
+          count,
+          sessionId,
+          timestamp: Date.now(),
+        });
+        io.to(sessionId).emit("phone-connected", {
+          count,
+          socketId: socket.id,
+          timestamp: Date.now(),
+        });
+      } else if (role === "pc") {
+        session.pcs.add(socket.id);
+        console.log(`[Socket] PC joined session: ${sessionId} (Active PCs: ${session.pcs.size}, Socket: ${socket.id})`);
+
+        // If phone(s) are already in the room, inform this PC immediately with current count
+        if (session.phones.size > 0) {
+          socket.emit("phone-count", {
+            count: session.phones.size,
+            sessionId,
+            timestamp: Date.now(),
+          });
+          socket.emit("phone-connected", {
+            count: session.phones.size,
+            timestamp: Date.now(),
+          });
+        }
+
+        // Notify phone(s) that PC is present
+        socket.to(sessionId).emit("pc-connected", {
+          socketId: socket.id,
+          timestamp: Date.now(),
+        });
+      }
 
       // Acknowledge the joining socket
       socket.emit("session-joined", {
@@ -54,20 +112,13 @@ export function setupSocket(server: HttpServer, clientUrl: string): Server {
         success: true,
       });
 
-      // Notify other clients in the same session room
+      // General peer status broadcast
       socket.to(sessionId).emit("peer-status", {
         role,
         status: "connected",
         socketId: socket.id,
         timestamp: Date.now(),
       });
-
-      // Role-specific convenience events
-      if (role === "phone") {
-        socket.to(sessionId).emit("phone-connected", { socketId: socket.id, timestamp: Date.now() });
-      } else if (role === "pc") {
-        socket.to(sessionId).emit("pc-connected", { socketId: socket.id, timestamp: Date.now() });
-      }
     });
 
     // Handle barcode scanned from phone
@@ -108,22 +159,49 @@ export function setupSocket(server: HttpServer, clientUrl: string): Server {
       const { sessionId, role } = socket.data as { sessionId?: string; role?: ClientRole };
       console.log(`[Socket] Client disconnected: ${socket.id} (${role ?? "unknown"}), Reason: ${reason}`);
 
-      if (sessionId && role) {
+      if (sessionId && sessions.has(sessionId)) {
+        const session = sessions.get(sessionId)!;
+
+        if (role === "phone") {
+          session.phones.delete(socket.id);
+          const remainingPhones = session.phones.size;
+          console.log(`[Socket] Phone left session ${sessionId}. Remaining phones: ${remainingPhones}`);
+
+          // Broadcast updated count
+          io.to(sessionId).emit("phone-count", {
+            count: remainingPhones,
+            sessionId,
+            timestamp: Date.now(),
+          });
+
+          // Only broadcast phone-disconnected when count hits 0
+          if (remainingPhones === 0) {
+            io.to(sessionId).emit("phone-disconnected", { timestamp: Date.now() });
+          }
+        } else if (role === "pc") {
+          session.pcs.delete(socket.id);
+          const remainingPcs = session.pcs.size;
+          console.log(`[Socket] PC left session ${sessionId}. Remaining PCs: ${remainingPcs}`);
+
+          if (remainingPcs === 0) {
+            io.to(sessionId).emit("pc-disconnected", { timestamp: Date.now() });
+          }
+        }
+
+        // Clean up empty session memory when both devices are gone
+        if (session.pcs.size === 0 && session.phones.size === 0) {
+          sessions.delete(sessionId);
+          console.log(`[Socket] Session room cleared from memory: ${sessionId}`);
+        }
+
         socket.to(sessionId).emit("peer-status", {
           role,
           status: "disconnected",
           timestamp: Date.now(),
         });
-
-        if (role === "phone") {
-          socket.to(sessionId).emit("phone-disconnected", { timestamp: Date.now() });
-        } else if (role === "pc") {
-          socket.to(sessionId).emit("pc-disconnected", { timestamp: Date.now() });
-        }
       }
     });
   });
 
   return io;
 }
-

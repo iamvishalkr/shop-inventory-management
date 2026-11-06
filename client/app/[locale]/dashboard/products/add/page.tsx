@@ -118,8 +118,14 @@ export default function BulkAddProductsPage() {
   const [recentlyScannedRowId, setRecentlyScannedRowId] = useState<string | null>(null);
 
   // Companion Scanner State
-  const [sessionId] = useState(() => "s-" + Math.random().toString(36).substring(2, 8));
-  const [phoneConnected, setPhoneConnected] = useState(false);
+  const [sessionId] = useState(() => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return "s-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18);
+    }
+    return "s-" + Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+  });
+  const [phoneCount, setPhoneCount] = useState(0);
+  const phoneConnected = phoneCount > 0;
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
@@ -208,18 +214,24 @@ export default function BulkAddProductsPage() {
       socket.emit("join-session", { sessionId, role: "pc" });
     });
 
-    socket.on("phone-connected", () => {
-      setPhoneConnected(true);
+    socket.on("phone-count", (data: { count: number }) => {
+      setPhoneCount(data.count ?? 0);
+    });
+
+    socket.on("phone-connected", (data?: { count?: number }) => {
+      setPhoneCount((prev) => (data?.count !== undefined ? data.count : Math.max(prev, 1)));
+    });
+
+    socket.on("phone-disconnected", (data?: { count?: number }) => {
+      setPhoneCount((prev) => (data?.count !== undefined ? data.count : 0));
     });
 
     socket.on("peer-status", (data: { role: string; status: string }) => {
       if (data.role === "phone") {
-        setPhoneConnected(data.status === "connected");
+        if (data.status === "connected") {
+          setPhoneCount((prev) => Math.max(prev, 1));
+        }
       }
-    });
-
-    socket.on("phone-disconnected", () => {
-      setPhoneConnected(false);
     });
 
     socket.on("barcode-received", (data: { code: string; format?: string }) => {
