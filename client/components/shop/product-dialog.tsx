@@ -11,22 +11,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCreateProduct, useUpdateProduct } from "@/hooks/use-products";
+import { useUpdateProduct } from "@/hooks/use-products";
 import type { Product } from "@/types/shop";
 import { toCents, toMajor } from "@/utils/price";
 
 interface ProductDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    productToEdit?: Product | null;
+    productToEdit: Product | null;
 }
 
 export function ProductDialog({ open, onOpenChange, productToEdit }: ProductDialogProps) {
-    const key = productToEdit ? productToEdit.id : "new-product";
+    if (!productToEdit) return null;
 
     return (
         <ProductDialogContent
-            key={`${key}-${open}`}
+            key={`${productToEdit.id}-${open}`}
             open={open}
             onOpenChange={onOpenChange}
             productToEdit={productToEdit}
@@ -34,18 +34,17 @@ export function ProductDialog({ open, onOpenChange, productToEdit }: ProductDial
     );
 }
 
-function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDialogProps) {
-    const isEdit = !!productToEdit;
-
-    const [pName, setPName] = useState(productToEdit?.p_name || "");
+function ProductDialogContent({ open, onOpenChange, productToEdit }: { open: boolean; onOpenChange: (open: boolean) => void; productToEdit: Product }) {
+    const [pName, setPName] = useState(productToEdit.p_name || "");
     const [pCostPrice, setPCostPrice] = useState(
-        productToEdit?.p_costprice !== undefined ? String(toMajor(productToEdit.p_costprice)) : ""
+        productToEdit.p_costprice !== undefined && productToEdit.p_costprice !== null
+            ? String(toMajor(productToEdit.p_costprice))
+            : ""
     );
-    const [pPrice, setPPrice] = useState(productToEdit ? String(toMajor(productToEdit.p_price)) : "");
-    const [pStock, setPStock] = useState(productToEdit ? String(productToEdit.p_stock) : "");
+    const [pPrice, setPPrice] = useState(String(toMajor(productToEdit.p_price)));
+    const [pStock, setPStock] = useState(String(productToEdit.p_stock));
     const [errorMsg, setErrorMsg] = useState("");
 
-    const createProductMutation = useCreateProduct();
     const updateProductMutation = useUpdateProduct();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -81,38 +80,29 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
         }
 
         try {
-            if (isEdit && productToEdit) {
-                await updateProductMutation.mutateAsync({
-                    id: productToEdit.id,
-                    data: {
-                        p_name: pName.trim(),
-                        p_price: priceInCents,
-                        p_costprice: costPriceInCents,
-                        p_stock: stock,
-                    },
-                });
-            } else {
-                await createProductMutation.mutateAsync({
+            await updateProductMutation.mutateAsync({
+                id: productToEdit.id,
+                data: {
                     p_name: pName.trim(),
                     p_price: priceInCents,
                     p_costprice: costPriceInCents,
                     p_stock: stock,
-                });
-            }
+                },
+            });
             onOpenChange(false);
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : "Failed to save product.";
+            const message = err instanceof Error ? err.message : "Failed to update product.";
             setErrorMsg(message);
         }
     };
 
-    const isLoading = createProductMutation.isPending || updateProductMutation.isPending;
+    const isLoading = updateProductMutation.isPending;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? "Update Product Details" : "Add New Product"}</DialogTitle>
+                    <DialogTitle>Update Product Details</DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-2">
@@ -186,7 +176,7 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: ProductDial
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isLoading}>
-                            {isLoading ? "Saving..." : isEdit ? "Update Product" : "Add Product"}
+                            {isLoading ? "Updating..." : "Update Product"}
                         </Button>
                     </DialogFooter>
                 </form>

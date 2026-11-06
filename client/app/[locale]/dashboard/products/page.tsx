@@ -76,7 +76,6 @@ export default function DashboardProductsPage() {
   const pagination = products.pagination;
 
   // Modal states
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
@@ -104,19 +103,14 @@ export default function DashboardProductsPage() {
         <div className="flex items-center gap-2">
           <Button
             nativeButton={false}
-            variant="outline"
             className="gap-2"
             render={(props) => (
               <Link href="/dashboard/products/add" {...props}>
-                <Plus className="h-4 w-4" />
-                Bulk Add Products
+                <PlusCircle className="h-4 w-4" />
+                Add Products
               </Link>
             )}
           />
-          <Button onClick={() => setIsAddOpen(true)} className="gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Add Product
-          </Button>
         </div>
       </div>
 
@@ -164,7 +158,7 @@ export default function DashboardProductsPage() {
               <p className="text-xs">
                 {searchQuery
                   ? `No product matches "${searchQuery}"`
-                  : 'Click "Add Product" above to create your first item!'}
+                  : 'Click "Add Products" above to create your first item!'}
               </p>
             </div>
           ) : (
@@ -300,8 +294,6 @@ export default function DashboardProductsPage() {
       </Card>
 
       {/* Modals */}
-      <ProductDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
-
       <ProductDialog
         open={!!productToEdit}
         onOpenChange={(open) => !open && setProductToEdit(null)}
