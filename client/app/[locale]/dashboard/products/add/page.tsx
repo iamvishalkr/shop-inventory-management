@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useRouter, Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useBulkCreateProducts } from "@/hooks/use-products";
 import { useShop } from "@/store/shop-store";
@@ -100,19 +101,27 @@ function playScanChime() {
   }
 }
 
-export default function BulkAddProductsPage() {
+function BulkAddProductsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const barcodeQuery = searchParams.get("barcode") || "";
   const locale = useLocale();
   const { activeShop } = useShop();
   const currencySymbol = activeShop?.currency || "$";
 
-  const [rows, setRows] = useState<DraftRow[]>([
-    createEmptyRow(),
-    createEmptyRow(),
-    createEmptyRow(),
-    createEmptyRow(),
-    createEmptyRow(),
-  ]);
+  const [rows, setRows] = useState<DraftRow[]>(() => {
+    const firstRow = createEmptyRow();
+    if (barcodeQuery) {
+      firstRow.barcode = barcodeQuery;
+    }
+    return [
+      firstRow,
+      createEmptyRow(),
+      createEmptyRow(),
+      createEmptyRow(),
+      createEmptyRow(),
+    ];
+  });
   const [globalError, setGlobalError] = useState("");
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [recentlyScannedRowId, setRecentlyScannedRowId] = useState<string | null>(null);
@@ -200,6 +209,17 @@ export default function BulkAddProductsPage() {
       return updatedRows;
     });
   }, []);
+
+  // If page was opened with a pre-filled ?barcode= param, focus the product name on row 1
+  useEffect(() => {
+    if (barcodeQuery && rows[0]?.id) {
+      const timer = setTimeout(() => {
+        nameInputsRef.current[rows[0].id]?.focus();
+        setActiveRowId(rows[0].id);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [barcodeQuery]);
 
   // Connect PC to Socket.IO pairing room
   useEffect(() => {
@@ -934,5 +954,19 @@ export default function BulkAddProductsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function BulkAddProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-sm text-muted-foreground">
+          Loading bulk product manager...
+        </div>
+      }
+    >
+      <BulkAddProductsContent />
+    </Suspense>
   );
 }

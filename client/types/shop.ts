@@ -19,6 +19,7 @@ export interface CartItem {
     c_discount: number;
     c_subtotal: number | string;
     c_stock?: number;
+    c_barcode?: string;
 }
 
 export interface Sale {
