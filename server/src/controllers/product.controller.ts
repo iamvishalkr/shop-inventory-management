@@ -16,6 +16,20 @@ export async function getProducts(req: Request, res: Response, next: NextFunctio
     }
 }
 
+export async function getProductByBarcode(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const shopId = req.shopId!;
+        const barcode = req.params.barcode;
+        if (typeof barcode !== "string") {
+            throw new Error("barcode type must be string")
+        }
+        const product = await productService.getProductByBarcode(shopId, barcode);
+        res.status(200).json({ status: true, data: product });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function createProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const shopId = req.shopId!;

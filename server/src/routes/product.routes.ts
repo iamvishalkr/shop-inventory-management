@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/require-auth.middleware.js";
 import { requireShop } from "../middleware/require-shop.middleware.js";
 import {
     getProducts,
+    getProductByBarcode,
     createProduct,
     bulkCreateProducts,
     updateProduct,
@@ -16,6 +17,7 @@ productRoutes.use(requireAuth);
 productRoutes.use(requireShop);
 
 productRoutes.get("/", getProducts);
+productRoutes.get("/barcode/:barcode", getProductByBarcode);
 productRoutes.post("/", createProduct);
 productRoutes.post("/bulk", bulkCreateProducts);
 productRoutes.put("/:id", updateProduct);

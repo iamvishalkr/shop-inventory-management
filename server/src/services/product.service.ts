@@ -1,6 +1,7 @@
 import prisma from "../lib/db.js";
-import { NotFoundError } from "../types/app-error.js";
+import { NotFoundError, ConflictError } from "../types/app-error.js";
 import type { CreateProductInput, UpdateProductInput } from "../validators/product.validator.js";
+import { generateRandomBarcode } from "../utils/barcode.js";
 
 export interface GetProductsOptions {
     page?: number;
@@ -16,10 +17,21 @@ export async function getProductsByShop(shopId: string, options: GetProductsOpti
     const where: any = { shopId };
 
     if (options.search && options.search.trim() !== "") {
-        where.p_name = {
-            contains: options.search.trim(),
-            mode: "insensitive",
-        };
+        const query = options.search.trim();
+        where.OR = [
+            {
+                p_name: {
+                    contains: query,
+                    mode: "insensitive",
+                },
+            },
+            {
+                barcode: {
+                    contains: query,
+                    mode: "insensitive",
+                },
+            },
+        ];
     }
 
     const [totalItems, products] = await prisma.$transaction([
@@ -59,7 +71,83 @@ export async function getProductById(shopId: string, productId: string) {
     return product;
 }
 
+export async function getProductByBarcode(shopId: string, barcode: string) {
+    const product = await prisma.product.findFirst({
+        where: {
+            shopId,
+            barcode: barcode.trim(),
+        },
+    });
+
+    if (!product) {
+        throw new NotFoundError(`Product with barcode "${barcode}" not found`);
+    }
+
+    return product;
+}
+
+/**
+ * Resolves a unique barcode for the product within the given shop.
+ * If barcode is provided, checks for collision; if empty/omitted, generates
+ * a random 6-character uppercase code and guarantees shop-level uniqueness.
+ */
+async function resolveUniqueBarcode(
+    shopId: string,
+    providedBarcode?: string,
+    existingBatchBarcodes?: Set<string>,
+): Promise<string> {
+    if (providedBarcode && providedBarcode.trim().length > 0) {
+        const trimmed = providedBarcode.trim();
+
+        if (existingBatchBarcodes && existingBatchBarcodes.has(trimmed)) {
+            throw new ConflictError(`Duplicate barcode "${trimmed}" in this batch`);
+        }
+
+        const existing = await prisma.product.findFirst({
+            where: {
+                shopId,
+                barcode: trimmed,
+            },
+        });
+
+        if (existing) {
+            throw new ConflictError(`A product with barcode "${trimmed}" already exists in this shop`);
+        }
+
+        return trimmed;
+    }
+
+    // Auto-generate random 6-character identifier
+    let attempts = 0;
+    while (attempts < 10) {
+        const candidate = generateRandomBarcode(6);
+
+        if (existingBatchBarcodes && existingBatchBarcodes.has(candidate)) {
+            attempts++;
+            continue;
+        }
+
+        const existing = await prisma.product.findFirst({
+            where: {
+                shopId,
+                barcode: candidate,
+            },
+        });
+
+        if (!existing) {
+            return candidate;
+        }
+
+        attempts++;
+    }
+
+    // Fallback if 6-character space is saturated
+    return generateRandomBarcode(8);
+}
+
 export async function createProduct(shopId: string, userId: string, input: CreateProductInput) {
+    const barcode = await resolveUniqueBarcode(shopId, input.barcode);
+
     return prisma.product.create({
         data: {
             shopId,
@@ -69,20 +157,30 @@ export async function createProduct(shopId: string, userId: string, input: Creat
             p_costprice: input.p_costprice ?? 0,
             p_stock: input.p_stock,
             p_thumbnail: input.p_thumbnail,
+            barcode,
         },
     });
 }
 
 export async function bulkCreateProducts(shopId: string, userId: string, products: CreateProductInput[]) {
-    const data = products.map((input) => ({
-        shopId,
-        userId,
-        p_name: input.p_name,
-        p_price: input.p_price,
-        p_costprice: input.p_costprice ?? 0,
-        p_stock: input.p_stock,
-        p_thumbnail: input.p_thumbnail,
-    }));
+    const batchBarcodes = new Set<string>();
+    const data = [];
+
+    for (const input of products) {
+        const barcode = await resolveUniqueBarcode(shopId, input.barcode, batchBarcodes);
+        batchBarcodes.add(barcode);
+
+        data.push({
+            shopId,
+            userId,
+            p_name: input.p_name,
+            p_price: input.p_price,
+            p_costprice: input.p_costprice ?? 0,
+            p_stock: input.p_stock,
+            p_thumbnail: input.p_thumbnail,
+            barcode,
+        });
+    }
 
     return prisma.product.createMany({
         data,
@@ -90,7 +188,20 @@ export async function bulkCreateProducts(shopId: string, userId: string, product
 }
 
 export async function updateProduct(shopId: string, productId: string, input: UpdateProductInput) {
-    await getProductById(shopId, productId);
+    const existing = await getProductById(shopId, productId);
+
+    if (input.barcode && input.barcode !== existing.barcode) {
+        const duplicate = await prisma.product.findFirst({
+            where: {
+                shopId,
+                barcode: input.barcode,
+            },
+        });
+
+        if (duplicate && duplicate.id !== productId) {
+            throw new ConflictError(`A product with barcode "${input.barcode}" already exists in this shop`);
+        }
+    }
 
     return prisma.product.update({
         where: { id: productId },

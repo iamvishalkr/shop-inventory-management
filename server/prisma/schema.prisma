@@ -108,11 +108,13 @@ model Product {
   p_costprice Float?   @default(0)
   p_stock     Int
   p_thumbnail String?
+  barcode     String   @default(cuid())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([shopId])
   @@index([userId])
+  @@unique([shopId, barcode])
   @@map("products")
 }
 

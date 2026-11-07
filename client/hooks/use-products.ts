@@ -36,7 +36,14 @@ export function useCreateProduct() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string }) => {
+        mutationFn: async (data: {
+            p_name: string;
+            p_price: number;
+            p_costprice?: number;
+            p_stock: number;
+            p_thumbnail?: string;
+            barcode?: string;
+        }) => {
             return apiFetch<ApiResponse<Product>>("/api/products", {
                 method: "POST",
                 body: JSON.stringify(data),
@@ -52,7 +59,16 @@ export function useBulkCreateProducts() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (products: Array<{ p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string }>) => {
+        mutationFn: async (
+            products: Array<{
+                p_name: string;
+                p_price: number;
+                p_costprice?: number;
+                p_stock: number;
+                p_thumbnail?: string;
+                barcode?: string;
+            }>
+        ) => {
             return apiFetch<ApiResponse<{ count: number }>>("/api/products/bulk", {
                 method: "POST",
                 body: JSON.stringify({ products }),
@@ -68,7 +84,20 @@ export function useUpdateProduct() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: { p_name: string; p_price: number; p_costprice?: number; p_stock: number; p_thumbnail?: string } }) => {
+        mutationFn: async ({
+            id,
+            data,
+        }: {
+            id: string;
+            data: {
+                p_name?: string;
+                p_price?: number;
+                p_costprice?: number;
+                p_stock?: number;
+                p_thumbnail?: string;
+                barcode?: string;
+            };
+        }) => {
             return apiFetch<ApiResponse<Product>>(`/api/products/${id}`, {
                 method: "PUT",
                 body: JSON.stringify(data),
@@ -77,6 +106,18 @@ export function useUpdateProduct() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["products"] });
         },
+    });
+}
+
+export function useProductByBarcode(barcode: string | null | undefined) {
+    return useQuery({
+        queryKey: ["product-barcode", barcode],
+        queryFn: async () => {
+            if (!barcode || !barcode.trim()) return null;
+            const res = await apiFetch<ApiResponse<Product>>(`/api/products/barcode/${encodeURIComponent(barcode.trim())}`);
+            return res.data;
+        },
+        enabled: !!barcode && barcode.trim().length > 0,
     });
 }
 

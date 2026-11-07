@@ -320,11 +320,16 @@ export default function BulkAddProductsPage() {
     let filledCount = 0;
 
     const nameCounts = new Map<string, number>();
+    const barcodeCounts = new Map<string, number>();
     for (const row of rows) {
       if (isRowPartiallyFilled(row)) {
         const normalizedName = row.p_name.trim().toLowerCase();
         if (normalizedName) {
           nameCounts.set(normalizedName, (nameCounts.get(normalizedName) || 0) + 1);
+        }
+        const trimmedBarcode = row.barcode?.trim();
+        if (trimmedBarcode) {
+          barcodeCounts.set(trimmedBarcode, (barcodeCounts.get(trimmedBarcode) || 0) + 1);
         }
       }
     }
@@ -344,6 +349,17 @@ export default function BulkAddProductsPage() {
       } else if ((nameCounts.get(trimmedName.toLowerCase()) || 0) > 1) {
         errors.p_name = "Duplicate product name in list";
         hasErrors = true;
+      }
+
+      const trimmedBarcode = row.barcode?.trim();
+      if (trimmedBarcode) {
+        if (trimmedBarcode.length < 6) {
+          errors.barcode = "Min 6 characters (or leave empty to auto-generate)";
+          hasErrors = true;
+        } else if ((barcodeCounts.get(trimmedBarcode) || 0) > 1) {
+          errors.barcode = "Duplicate barcode in list";
+          hasErrors = true;
+        }
       }
 
       const rawPrice = parseFloat(row.p_price);
@@ -387,7 +403,6 @@ export default function BulkAddProductsPage() {
     const validRows = validateRows();
     if (!validRows) return;
 
-    // As requested: ignores barcode field for backend payload until server model is updated
     const payload = validRows.map((r) => {
       const costPriceInCents = r.p_costprice.trim() ? toCents(r.p_costprice) : 0;
       const priceInCents = toCents(r.p_price);
@@ -397,6 +412,7 @@ export default function BulkAddProductsPage() {
         p_price: priceInCents,
         p_costprice: costPriceInCents,
         p_stock: stock,
+        barcode: r.barcode.trim() ? r.barcode.trim() : undefined,
       };
     });
 
@@ -561,10 +577,11 @@ export default function BulkAddProductsPage() {
                   <TableHead className="w-[50px] text-center font-semibold text-muted-foreground">
                     #
                   </TableHead>
-                  <TableHead className="w-[180px]">
+                  <TableHead className="w-[190px]">
                     <div className="flex items-center gap-1.5">
                       <ScanBarcode className="h-4 w-4 text-muted-foreground" />
                       <span>Barcode</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">(Auto if empty)</span>
                     </div>
                   </TableHead>
                   <TableHead className="min-w-[220px]">
@@ -607,28 +624,37 @@ export default function BulkAddProductsPage() {
 
                       {/* Barcode Input */}
                       <TableCell>
-                        <InputGroup
-                          className={`h-9 font-mono ${isRecentlyScanned
-                              ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                              : row.id === activeRowId
-                                ? "border-primary/50"
-                                : ""
-                            }`}
-                        >
-                          <InputGroupAddon align="inline-start" className="text-muted-foreground px-2">
-                            <ScanBarcode className="h-3.5 w-3.5" />
-                          </InputGroupAddon>
-                          <InputGroupInput
-                            ref={(el) => {
-                              barcodeInputsRef.current[row.id] = el;
-                            }}
-                            placeholder="Scan or type..."
-                            value={row.barcode}
-                            onFocus={() => setActiveRowId(row.id)}
-                            onChange={(e) => handleRowChange(row.id, "barcode", e.target.value)}
-                            className="text-xs px-1"
-                          />
-                        </InputGroup>
+                        <div className="space-y-1">
+                          <InputGroup
+                            className={`h-9 font-mono ${row.errors?.barcode
+                                ? "border-destructive ring-destructive/20"
+                                : isRecentlyScanned
+                                ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                                : row.id === activeRowId
+                                  ? "border-primary/50"
+                                  : ""
+                              }`}
+                          >
+                            <InputGroupAddon align="inline-start" className="text-muted-foreground px-2">
+                              <ScanBarcode className="h-3.5 w-3.5" />
+                            </InputGroupAddon>
+                            <InputGroupInput
+                              ref={(el) => {
+                                barcodeInputsRef.current[row.id] = el;
+                              }}
+                              placeholder="Scan or auto..."
+                              value={row.barcode}
+                              onFocus={() => setActiveRowId(row.id)}
+                              onChange={(e) => handleRowChange(row.id, "barcode", e.target.value)}
+                              className="text-xs px-1"
+                            />
+                          </InputGroup>
+                          {row.errors?.barcode && (
+                            <span className="text-[11px] text-destructive font-medium block">
+                              {row.errors.barcode}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
 
                       {/* Product Name */}

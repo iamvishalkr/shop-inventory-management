@@ -36,6 +36,7 @@ export function ProductDialog({ open, onOpenChange, productToEdit }: ProductDial
 
 function ProductDialogContent({ open, onOpenChange, productToEdit }: { open: boolean; onOpenChange: (open: boolean) => void; productToEdit: Product }) {
     const [pName, setPName] = useState(productToEdit.p_name || "");
+    const [barcode, setBarcode] = useState(productToEdit.barcode || "");
     const [pCostPrice, setPCostPrice] = useState(
         productToEdit.p_costprice !== undefined && productToEdit.p_costprice !== null
             ? String(toMajor(productToEdit.p_costprice))
@@ -53,6 +54,11 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: { open: boo
 
         if (!pName.trim()) {
             setErrorMsg("Product name is required.");
+            return;
+        }
+
+        if (barcode.trim() && barcode.trim().length < 6) {
+            setErrorMsg("Barcode must be at least 6 characters.");
             return;
         }
 
@@ -87,6 +93,7 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: { open: boo
                     p_price: priceInCents,
                     p_costprice: costPriceInCents,
                     p_stock: stock,
+                    barcode: barcode.trim() || undefined,
                 },
             });
             onOpenChange(false);
@@ -120,6 +127,18 @@ function ProductDialogContent({ open, onOpenChange, productToEdit }: { open: boo
                             value={pName}
                             onChange={(e) => setPName(e.target.value)}
                             disabled={isLoading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="barcode">Barcode / Code</Label>
+                        <Input
+                            id="barcode"
+                            placeholder="e.g. 890123456789 or 6-char code"
+                            value={barcode}
+                            onChange={(e) => setBarcode(e.target.value)}
+                            disabled={isLoading}
+                            className="font-mono text-sm"
                         />
                     </div>
 

@@ -26,6 +26,17 @@ export function errorHandler(
         return;
     }
 
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+        const meta = (error as { meta?: { target?: string[] } }).meta;
+        const target = meta?.target;
+        if (Array.isArray(target) && target.includes("barcode")) {
+            res.status(409).json({ error: "A product with this barcode already exists in this shop" });
+            return;
+        }
+        res.status(409).json({ error: "A record with these unique details already exists" });
+        return;
+    }
+
     // if (error instanceof multer.MulterError) {
     //     res.status(400).json({ error: error.message });
     //     return;

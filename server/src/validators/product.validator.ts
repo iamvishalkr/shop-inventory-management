@@ -6,6 +6,14 @@ export const createProductSchema = z.object({
     p_costprice: z.number().nonnegative("Cost price must be a non-negative number").optional().default(0),
     p_stock: z.number().int().nonnegative("Stock must be a non-negative integer"),
     p_thumbnail: z.string().optional(),
+    barcode: z
+        .string()
+        .trim()
+        .min(6, "Barcode must be at least 6 characters")
+        .max(48, "Barcode cannot exceed 48 characters")
+        .optional()
+        .or(z.literal(""))
+        .transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
 });
 
 export const bulkCreateProductsSchema = z.object({
@@ -18,6 +26,14 @@ export const updateProductSchema = z.object({
     p_costprice: z.number().nonnegative().optional(),
     p_stock: z.number().int().nonnegative().optional(),
     p_thumbnail: z.string().optional(),
+    barcode: z
+        .string()
+        .trim()
+        .min(6, "Barcode must be at least 6 characters")
+        .max(48, "Barcode cannot exceed 48 characters")
+        .optional()
+        .or(z.literal(""))
+        .transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

@@ -10,7 +10,7 @@ const testSeedProducts = async () => {
         p_name: p,
         shopId: shop.id,
         userId: shop.userId,
-        p_price: Math.floor(Math.random() * 5000) + 500,
+        p_price: Math.trunc((Math.floor(Math.random() * 50000) + 500) / 100) * 100,
         p_stock: Math.floor(Math.random() * 50) + 10,
     }
     ))

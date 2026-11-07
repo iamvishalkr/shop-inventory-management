@@ -132,7 +132,7 @@ export default function DashboardProductsPage() {
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search product name..."
+                placeholder="Search name or barcode..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 text-sm"
@@ -168,6 +168,7 @@ export default function DashboardProductsPage() {
                   <TableRow>
                     <TableHead className="w-[60px] text-center">S.No</TableHead>
                     <TableHead>Product Name</TableHead>
+                    <TableHead className="w-[140px]">Barcode / Code</TableHead>
                     <TableHead>Cost Price</TableHead>
                     <TableHead>Selling Price</TableHead>
                     <TableHead>Stock Level</TableHead>
@@ -185,6 +186,14 @@ export default function DashboardProductsPage() {
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">
                         {product.p_name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-xs font-medium px-2 py-0.5 tracking-wider bg-muted/40"
+                        >
+                          {product.barcode || "-"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {product.p_costprice !== undefined && product.p_costprice !== null

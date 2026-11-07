@@ -6,6 +6,7 @@ export interface Product {
     p_costprice?: number;
     p_stock: number;
     p_thumbnail?: string | null;
+    barcode: string;
     createdAt?: string;
     updatedAt?: string;
 }
