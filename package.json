@@ -1,0 +1,11 @@
+{
+  "name": "shop-inventory-management-root",
+  "private": true,
+  "scripts": {
+    "deploy:prepare": "node server/scripts/deploy-prepare.js",
+    "deploy": "node server/scripts/deploy-prepare.js --commit --push",
+    "dev:server": "pnpm --dir server dev",
+    "dev:client": "pnpm --dir client dev"
+  }
+}
+
