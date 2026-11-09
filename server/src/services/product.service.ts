@@ -1,7 +1,13 @@
 import prisma from "../lib/db.js";
-import { NotFoundError, ConflictError } from "../types/app-error.js";
+import { NotFoundError, ConflictError, ValidationError } from "../types/app-error.js";
 import type { CreateProductInput, UpdateProductInput } from "../validators/product.validator.js";
 import { generateRandomBarcode } from "../utils/barcode.js";
+
+function getMaxProductsLimit(): number {
+    return process.env.MAX_PRODUCTS_PER_SHOP
+        ? parseInt(process.env.MAX_PRODUCTS_PER_SHOP, 10) || 1000
+        : 1000;
+}
 
 export interface GetProductsOptions {
     page?: number;
@@ -11,7 +17,8 @@ export interface GetProductsOptions {
 
 export async function getProductsByShop(shopId: string, options: GetProductsOptions = {}) {
     const page = Math.max(1, options.page || 1);
-    const limit = Math.min(100, Math.max(1, options.limit || 25));
+    const maxLimit = getMaxProductsLimit();
+    const limit = Math.min(maxLimit, Math.max(1, options.limit || 25));
     const skip = (page - 1) * limit;
 
     const where: any = { shopId };
@@ -146,6 +153,14 @@ async function resolveUniqueBarcode(
 }
 
 export async function createProduct(shopId: string, userId: string, input: CreateProductInput) {
+    const maxAllowed = getMaxProductsLimit();
+    const currentCount = await prisma.product.count({ where: { shopId } });
+    if (currentCount >= maxAllowed) {
+        throw new ValidationError(
+            `Product limit reached. Maximum allowed products per shop is ${maxAllowed}.`
+        );
+    }
+
     const barcode = await resolveUniqueBarcode(shopId, input.barcode);
 
     return prisma.product.create({
@@ -163,6 +178,14 @@ export async function createProduct(shopId: string, userId: string, input: Creat
 }
 
 export async function bulkCreateProducts(shopId: string, userId: string, products: CreateProductInput[]) {
+    const maxAllowed = getMaxProductsLimit();
+    const currentCount = await prisma.product.count({ where: { shopId } });
+    if (currentCount + products.length > maxAllowed) {
+        throw new ValidationError(
+            `Product limit exceeded. Current count: ${currentCount}, adding: ${products.length}, max allowed: ${maxAllowed}.`
+        );
+    }
+
     const batchBarcodes = new Set<string>();
     const data = [];
 
